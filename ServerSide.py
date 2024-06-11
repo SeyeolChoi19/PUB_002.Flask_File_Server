@@ -60,7 +60,7 @@ def retrieve_file_from_server():
     return jsonify(result_json)
 
 @flask_file_server_interface.route("/search_file", methods = ["GET"])
-@jwt_required
+@jwt_required()
 def search_file_name_in_server():
     file_name      = request.args.get("file_name")
     file_directory = request.args.get("file_directory")
