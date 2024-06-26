@@ -1,12 +1,17 @@
 import os, jwt, base64
 
-from flask              import Flask, request, jsonify 
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
-from werkzeug.security  import generate_password_hash, check_password_hash
-from config.secret_key  import SECRET_KEY
+import pandas as pd 
 
-# to be changed
-flask_file_server_user_database        = {"" : generate_password_hash("!")}
+from flask                       import Flask, request, jsonify 
+from flask_jwt_extended          import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from werkzeug.security           import check_password_hash
+from config.GenerateSecretKey    import SECRET_KEY
+from config.retrieve_user_info   import retrieve_api_user_info
+from config.DBInterfacePostgres  import DBInterface
+from config.EnvironmentVariables import ADMIN_NAME, ADMIN_PWD
+
+flask_file_server_user_database        = retrieve_api_user_info()
+marketing_team_two_database_object     = DBInterface()
 flask_file_server_interface            = Flask(__name__)
 json_web_token_instance                = JWTManager(flask_file_server_interface)
 flask_file_server_interface.secret_key = SECRET_KEY
@@ -88,6 +93,30 @@ def delete_file_from_server():
         status_message = "Operation success, file deleted"
     
     return jsonify({"status" : status_message})
+
+@flask_file_server_interface.route("/upload", methods = ["POST"])
+@jwt_required()
+def upload_data():
+    table_name      = request.form["table_name"]
+    server_name     = request.form["server_name"]
+    db_user_name    = request.form["db_user_name"]
+    db_user_pwd     = request.form["db_user_pwd"]
+    dataframe       = pd.read_json(request.files["dataframe"])
+    marketing_team_two_database_object.connection_settings("postgresql", os.getenv(ADMIN_NAME), os.getenv(ADMIN_PWD), "localhost", server_name)
+    
+    try:
+        marketing_team_two_database_object.upload_to_database(table_name, dataframe)
+        return jsonify({"status" : f"Operation success, data uploaded to {server_name}.{table_name}"})
+    except Exception as E:
+        return jsonify({"status" : f"Operation failure, error message {E}"})          
+
+@flask_file_server_interface.route("/query", methods = ["GET"])
+@jwt_required()
+def query_data():
+    table_name       = request.args.get("table_name")
+    columns_list     = request.args.get("columns").split(",")
+    filter_condition = request.args.get("filter_value")
+    marketing_team_two_database_object
 
 if (__name__ == "__main__"):
     flask_file_server_interface.run(host = "0.0.0.0", port = 5000, threaded = True)
