@@ -136,3 +136,9 @@ class ClientSideInterface:
         )
         
         return response
+
+if (__name__ == "__main__"):
+    client_interface = ClientSideInterface()
+    client_interface.login_to_server("usr", "pwd", "http://000.000.000.000:0000")
+    client_interface.upload_to_database("random_data", "server_name", "http://000.000.000.000:0000", data_to_upload).json()
+    client_interface.query_database("random_data", "server_name", "http://000.000.000.000:0000", ["*"])
