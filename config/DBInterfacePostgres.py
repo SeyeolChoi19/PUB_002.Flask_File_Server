@@ -7,9 +7,12 @@ from sqlalchemy import text
 
 class DBInterface:
     def connection_settings(self, sql_type: str, username: str, password: str, hostname: str, server_name: str):
+        self.sql_type    = sql_type
+        self.username    = username
+        self.password    = password 
         self.hostname    = hostname 
         self.server_name = server_name
-        self.engine      = create_engine(f"{sql_type}://{username}:{password}@{hostname}/{server_name}", echo = False, pool_size = 30, max_overflow = 30)
+        self.engine      = create_engine(f"{sql_type}://{username}:{password}@{hostname}/{server_name}", echo = False)
     
     def upload_to_database(self, table_name: str, df: pd.core.frame.DataFrame, exist_option: str = "append"):
         df.to_sql(table_name, con = self.engine, if_exists = exist_option, index = False)
