@@ -1,4 +1,4 @@
-import os, base64, requests, io, json
+import os, base64, requests
 
 import pandas as pd 
 
@@ -84,7 +84,7 @@ class ClientSideInterface:
 
         return response.json()
     
-    def upload_to_database(self, table_name: str, server_name: str, target_ip: str, data_to_upload: pd.DataFrame):
+    def upload_to_database(self, table_name: str, server_name: str, target_ip: str, db_user_name: str, db_user_pwd: str, data_to_upload: pd.DataFrame):
         api_url  = f"{target_ip}/upload_data"
         response = requests.post(
             api_url, 
@@ -92,8 +92,10 @@ class ClientSideInterface:
                 "Authorization" : f"Bearer {self.jwt_token}"
             },
             data = {
-                "table_name"  : table_name, 
-                "server_name" : server_name 
+                "table_name"   : table_name, 
+                "server_name"  : server_name,
+                'db_user_name' : db_user_name, 
+                "db_user_pwd"  : db_user_pwd
             },
             files = {
                 "dataframe" : data_to_upload.to_json()
