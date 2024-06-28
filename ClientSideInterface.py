@@ -2,6 +2,8 @@ import os, base64, requests
 
 import pandas as pd 
 
+from config.DBInterfacePostgres import DBInterface
+
 class ClientSideInterface:
     def login_to_server(self, username: str, password: str, target_ip: str):
         api_url  = f"{target_ip}/login"
@@ -84,7 +86,7 @@ class ClientSideInterface:
 
         return response.json()
     
-    def upload_to_database(self, table_name: str, server_name: str, target_ip: str, data_to_upload: pd.DataFrame):
+    def upload_to_database(self, table_name: str, server_name: str, target_ip: str, data_to_upload: pd.DataFrame, schema_name: str = "public"):
         api_url  = f"{target_ip}/upload_data"
         response = requests.post(
             api_url, 
@@ -92,8 +94,9 @@ class ClientSideInterface:
                 "Authorization" : f"Bearer {self.jwt_token}"
             },
             data = {
-                "table_name"   : table_name, 
-                "server_name"  : server_name
+                "table_name"  : table_name, 
+                "server_name" : server_name,
+                "schema_name" : schema_name
             },
             files = {
                 "dataframe" : data_to_upload.to_json()
@@ -102,7 +105,7 @@ class ClientSideInterface:
 
         return response
     
-    def query_database(self, table_name: str, server_name: str, target_ip: str,  columns_list: list[str], filter_value: str = None):
+    def query_database(self, table_name: str, server_name: str, target_ip: str,  columns_list: list[str], filter_value: str = None, schema_name: str = "public"):
         api_url  = f"{target_ip}/query"
         response = requests.get(
             api_url, 
@@ -112,6 +115,7 @@ class ClientSideInterface:
             params = {
                 "server_name"      : server_name,
                 "table_name"       : table_name,
+                "schema_name"      : schema_name,
                 "column_names"     : ",".join(columns_list),
                 "filter_condition" : (lambda x: "" if (x == None) else x)(filter_value)
             }
@@ -119,7 +123,7 @@ class ClientSideInterface:
         
         return response
     
-    def delete_from_database(self, table_name: str, server_name: str, target_ip: str, column_name: str, filter_value: str, filter_condition: str):
+    def delete_from_database(self, table_name: str, server_name: str, target_ip: str, column_name: str, filter_value: str, filter_condition: str, schema_name: str = "public"):
         api_url  = f"{target_ip}/delete"
         response = requests.delete(
             api_url, 
@@ -129,6 +133,7 @@ class ClientSideInterface:
             params = {
                 "table_id"         : table_name,
                 "server_name"      : server_name,
+                "schema_name"      : schema_name,
                 "column_name"      : column_name, 
                 "filter_value"     : filter_value,
                 "filter_condition" : filter_condition
