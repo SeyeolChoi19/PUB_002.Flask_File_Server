@@ -1,12 +1,11 @@
 import os, base64
 
-import pandas as pd 
-
-from flask                                     import request, jsonify 
-from flask_jwt_extended                        import create_access_token, jwt_required
-from werkzeug.security                         import check_password_hash
-from config.miscellaneous.EnvironmentVariables import ADMIN_NAME, ADMIN_PWD
-from config.flask_programs.FlaskAPIObject      import flask_file_server_interface, flask_file_server_user_database, personal_database_interface_object
+from flask                                             import request, jsonify 
+from flask_jwt_extended                                import create_access_token, jwt_required
+from werkzeug.security                                 import check_password_hash
+from config.flask_programs.FlaskAPIObject              import flask_file_server_interface, flask_file_server_user_database, flask_file_server_user_ip_addresses, marketing_team_two_database_object, root_path_folder
+from config.database_operations.log_database_operation import log_database_usage
+from config.miscellaneous.validate_file_mime_type      import validate_file_type_and_mime 
 
 @flask_file_server_interface.route("/login", methods = ["POST"])
 def login_to_server():
@@ -23,19 +22,23 @@ def login_to_server():
 @jwt_required()
 def save_file_to_server():
     file_name        = request.form["file_name"]
-    server_directory = request.form["server_directory"]
+    server_directory = request.form["server_directory"].strip()
     file_object_64   = request.form["transferred_file"]
-    os.makedirs(server_directory, exist_ok = True)    
+    file_validity    = validate_file_type_and_mime()
 
-    try: 
-        with open(os.path.join(server_directory, file_name), "wb") as transferred_file:
-            transferred_file.write(base64.b64decode(file_object_64))
+    if (server_directory.startswith(request.remote_addr)):
+        try: 
+            with open(os.path.join(root_path_folder, server_directory, file_name), "wb") as transferred_file:
+                transferred_file.write(base64.b64decode(file_object_64))
 
-        result_json = {"status" : f"File saved to {os.path.join(server_directory, file_name)}"}
-    except IOError:
-        result_json = {"status" : "File I/O error. File was not saved to the server"}
-    except Exception:
-        result_json = {"status" : "Unknown error. File was not saved to the server"}
+            result_json = {"status" : f"File saved to {os.path.join(server_directory, file_name)}"}
+            log_database_usage(f"FILE_SERVER_OPERATION: File {file_name} saved to {os.path.join(server_directory, file_name)}", "/save_file", request.remote_addr)
+        except IOError:
+            result_json = {"status" : "File I/O error. File was not saved to the server"}
+        except Exception:
+            result_json = {"status" : "Unknown error. File was not saved to the server"}
+    else:
+        result_json = {"status" : "File path error. Illegal file path"}
 
     return jsonify(result_json)
 
