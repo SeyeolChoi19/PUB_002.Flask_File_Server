@@ -1,0 +1,27 @@
+{
+    "supported_file_types" : [
+        "txt", 
+        "pdf",
+        "doc",
+        "docx",
+        "xls",
+        "xlsx",
+        "jpg", 
+        "jpeg", 
+        "png", 
+        "gif", 
+        "csv"
+    ],
+    "supported_file_mimes" : [
+        "text/plain",
+        "application/pdf",  
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  
+        "application/vnd.ms-excel",  
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  
+        "image/jpeg",  
+        "image/png",  
+        "image/gif",  
+        "text/csv"  
+    ]
+}
