@@ -5,3 +5,4 @@ TABLE_NAME           = "TABLE_NAME" # 유저 정보 테이블
 SERVER_NAME          = "SERVER_NAME" # 서버명 
 DB_INFO_TABLE        = "DB_INFO_TABLE" # DB 유저 정보 테이블 
 ALLOWED_IP_ADDRESSES = "ALLOWED_IP_ADDRESSES" # 허용되는 IP 주소
+ACTIVITY_LOG         = "ACTIVITY_LOG"
