@@ -15,7 +15,7 @@ def filter_ip_addresses():
         abort(403)
 
 flask_file_server_user_database        = retrieve_api_user_info("file_server")
-personal_database_interface_object     = DBInterface()
+database_object                        = DBInterface()
 flask_file_server_interface            = Flask(__name__)
 json_web_token_instance                = JWTManager(flask_file_server_interface)
 flask_file_server_interface.secret_key = SECRET_KEY
