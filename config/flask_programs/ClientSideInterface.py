@@ -91,12 +91,3 @@ class ClientSideInterface:
         )
         
         return response
-    
-if (__name__ == "__main__"):
-    client_interface = ClientSideInterface()
-    database_object  = DBInterface()
-    dataframe        = pd.read_excel(r"C:\Users\User\015.Amore_Pacific\src\BY24 소셜버즈 데이터_취합본.xlsx")
-    client_interface.login_to_server("taeheon.park@samsung.com", "test_password_1", "http://172.21.121.117:5001")
-    # client_interface.upload_to_database("001_BY24_BUZZ_DATA", "MT2_Datalake", "http://172.21.121.117:5001", dataframe, "AP_PHASE_01")
-    get_data = client_interface.query_database("001_BY24_BUZZ_DATA", "MT2_Datalake", "http://172.21.121.117:5001", ["*"], filter_value = '"Brand" = \'설화수\'', schema_name = "AP_PHASE_01")
-    pd.DataFrame(get_data.json())
