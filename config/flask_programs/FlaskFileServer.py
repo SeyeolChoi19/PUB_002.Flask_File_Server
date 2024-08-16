@@ -1,74 +1,161 @@
-import os, base64
+import os, base64, requests
 
-from flask                                             import request, jsonify 
-from flask_jwt_extended                                import create_access_token, jwt_required
-from werkzeug.security                                 import check_password_hash
-from config.flask_programs.FlaskAPIObject              import flask_file_server_interface, flask_file_server_user_database, flask_file_server_user_ip_addresses, database_object, root_path_folder
-from config.database_operations.log_database_operation import log_database_usage
-from config.miscellaneous.validate_file_mime_type      import validate_file_type_and_mime 
+import pandas as pd 
 
-@flask_file_server_interface.route("/login", methods = ["POST"])
-def login_to_server():
-    username = request.json.get("username")
-    password = request.json.get("password")
+class ClientSideInterface:
+    def login_to_server(self, username: str, password: str, target_ip: str):
+        api_url  = f"{target_ip}/login"
+        response = requests.post(
+            api_url, 
+            json = {
+                "username" : username, 
+                "password" : password
+            }
+        )
 
-    if ((username in flask_file_server_user_database) and (check_password_hash(flask_file_server_user_database[username], password))):
-        access_token = create_access_token(identity = username)
-        return jsonify(access_token = access_token)
-    else:
-        return jsonify({"msg" : "Bad user credentials"})
+        if (response.status_code == 200):
+            self.jwt_token = response.json()["access_token"]
+            return "login successful"
+        else:
+            return "login failed"
 
-@flask_file_server_interface.route("/save_file", methods = ["POST"])
-@jwt_required()
-def save_file_to_server():
-    file_name        = request.form["file_name"]
-    server_directory = request.form["server_directory"].strip()
-    file_object_64   = request.form["transferred_file"]
-    file_validity    = validate_file_type_and_mime()
-
-    if (server_directory.startswith(request.remote_addr)):
-        try: 
-            with open(os.path.join(root_path_folder, server_directory, file_name), "wb") as transferred_file:
-                transferred_file.write(base64.b64decode(file_object_64))
-
-            result_json = {"status" : f"File saved to {os.path.join(server_directory, file_name)}"}
-            log_database_usage(f"FILE_SERVER_OPERATION: File {file_name} saved to {os.path.join(server_directory, file_name)}", "/save_file", request.remote_addr)
-        except IOError:
-            result_json = {"status" : "File I/O error. File was not saved to the server"}
-        except Exception:
-            result_json = {"status" : "Unknown error. File was not saved to the server"}
-    else:
-        result_json = {"status" : "File path error. Illegal file path"}
-
-    return jsonify(result_json)
-
-@flask_file_server_interface.route("/retrieve_file", methods = ["GET"])
-@jwt_required()
-def retrieve_file_from_server():
-    file_name      = request.args.get("file_name")
-    file_directory = request.args.get("file_directory")
-    full_file_path = os.path.join(file_directory, file_name)
-    result_json    = {"status" : "failure"}
-
-    if (os.path.exists(full_file_path)):
-        with open(full_file_path, "rb") as target_file:
-            target_file = base64.b64encode(target_file.read()).decode()
+    def upload_file_to_server(self, local_file_name: str, server_file_name: str, target_ip: str):
+        server_directory_array = server_file_name.replace("\\", "/").split("/")
+        server_directory       = "/".join(server_directory_array[:-1])
+        file_name              = server_directory_array[-1]
         
-        result_json = {"status" : "success", "file_object" : target_file}
+        with open(local_file_name, "rb") as file_object:
+            file_object_base64 = base64.b64encode(file_object.read()).decode()
 
-    return jsonify(result_json)
+        api_url  = f"{target_ip}/save_file"
+        response = requests.post(
+            api_url, 
+            headers = {
+                "Authorization" : f"Bearer {self.jwt_token}"
+            },
+            data    = {
+                "file_name"        : file_name, 
+                "server_directory" : server_directory,
+                "transferred_file" : file_object_base64
+            }
+        )
 
-@flask_file_server_interface.route("/delete_file", methods = ["DELETE"])
-@jwt_required()
-def delete_file_from_server():
-    file_name      = request.args.get("file_name")
-    file_directory = request.args.get("file_directory")
-    status_message = "Operation failure"
+        return response.json()["status"]
 
-    if (os.path.exists(os.path.join(file_directory, file_name)) != True):
-        status_message += ", please check if the file directory was inputted correctly"
-    else:
-        os.remove(os.path.join(file_directory, file_name))
-        status_message = "Operation success, file deleted"
+    def retrieve_file_from_server(self, server_file_name: str, destination_folder: str, target_ip: str):
+        server_directory_array = server_file_name.replace("\\", "/").split("/")
+        server_directory       = "/".join(server_directory_array[:-1])
+        file_name              = server_directory_array[-1]
+
+        api_url  = f"{target_ip}/retrieve_file"
+        response = requests.get(
+            api_url, 
+            headers = {
+                "Authorization" : f"Bearer {self.jwt_token}"
+            },
+            params = {
+                "file_name"      : file_name, 
+                "file_directory" : server_directory
+            }
+        )
+
+        with open(os.path.join(destination_folder, file_name), "wb") as retrieved_file: 
+            retrieved_file.write(base64.b64decode(response.json()["file_object"]))
+
+        return response
+
+    def search_file_server(self, server_file_name: str, target_ip: str):
+        server_directory_array = server_file_name.replace("\\", "/").split("/")
+        file_directory         = "/".join(server_directory_array[:-1])
+        file_name              = server_directory_array[-1]
+
+        api_url  = f"{target_ip}/search_file"
+        response = requests.get(
+            api_url, 
+            headers = {
+                "Authorization" : f"Bearer {self.jwt_token}"
+            },
+            params = {
+                "file_name"      : file_name, 
+                "file_directory" : file_directory
+            }
+        )
+
+        return response.json()["status"]
+
+    def delete_from_server(self, server_file_name: str, target_ip: str):
+        server_directory_array = server_file_name.replace("\\", "/").split("/")
+        file_directory         = "/".join(server_directory_array[:-1])
+        file_name              = server_directory_array[-1]
+
+        api_url  = f"{target_ip}/delete_file"
+        response = requests.delete(
+            api_url, 
+            headers = {
+                "Authorization" : f"Bearer {self.jwt_token}"
+            },
+            params = {
+                "file_name"      : file_name, 
+                "file_directory" : file_directory 
+            }
+        )
+
+        return response.json()
     
-    return jsonify({"status" : status_message})
+    def upload_to_database(self, table_name: str, server_name: str, target_ip: str, data_to_upload: pd.DataFrame, schema_name: str = "public"):
+        api_url  = f"{target_ip}/upload_data"
+        response = requests.post(
+            api_url, 
+            headers = {
+                "Authorization" : f"Bearer {self.jwt_token}"
+            },
+            data = {
+                "table_name"  : table_name, 
+                "server_name" : server_name,
+                "schema_name" : schema_name
+            },
+            files = {
+                "dataframe" : data_to_upload.to_json()
+            }
+        )
+
+        return response
+    
+    def query_database(self, table_name: str, server_name: str, target_ip: str,  columns_list: list[str], filter_value: str = None, schema_name: str = "public"):
+        filter_value = "" if (filter_value == None) else filter_value
+
+        api_url  = f"{target_ip}/query"
+        response = requests.get(
+            api_url, 
+            headers = {
+                "Authorization" : f"Bearer {self.jwt_token}"
+            },
+            params = {
+                "server_name"      : server_name,
+                "table_name"       : table_name,
+                "schema_name"      : schema_name,
+                "column_names"     : ",".join(columns_list),
+                "filter_condition" : (lambda x: "" if (x == None) else x)(filter_value)
+            }
+        )
+        
+        return response
+    
+    def delete_from_database(self, table_name: str, server_name: str, target_ip: str, column_name: str, filter_value: str, filter_condition: str, schema_name: str = "public"):
+        api_url  = f"{target_ip}/delete"
+        response = requests.delete(
+            api_url, 
+            headers = {
+                "Authorization" : f"Bearer {self.jwt_token}"
+            },
+            params = {
+                "table_id"         : table_name,
+                "server_name"      : server_name,
+                "schema_name"      : schema_name,
+                "column_name"      : column_name, 
+                "filter_value"     : filter_value,
+                "filter_condition" : filter_condition
+            }
+        )
+        
+        return response
