@@ -22,17 +22,13 @@ def login_to_server():
 def save_file_to_server():
     file_name        = request.form["file_name"]
     server_directory = request.form["server_directory"].strip()
-    file_object_64   = request.form["transferred_file"]
-
-    print(server_directory, file_name)
+    file_object      = request.files.get("transferred_file")
 
     try: 
-        with open(os.path.join(server_directory, file_name), "wb") as transferred_file:
-            transferred_file.write(base64.b64decode(file_object_64))
-
+        file_object.save(os.path.join(server_directory, file_name))
         result_json = {"status" : f"File saved to {os.path.join(server_directory, file_name)}"}
         log_database_usage(f"FILE_SERVER_OPERATION: File {file_name} saved to {os.path.join(server_directory, file_name)}", "/save_file", request.remote_addr)
-    except IOError:
+    except IOError as E:
         result_json = {"status" : "File I/O error. File was not saved to the server"}
     except Exception as E:
         print(E)
