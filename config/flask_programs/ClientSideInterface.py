@@ -161,3 +161,7 @@ class ClientSideInterface:
         )
         
         return response
+
+if (__name__ == "__main__"):
+    client_interface = ClientSideInterface()
+    client_interface.login_to_server("seyeol.choi@samsung.com", "test_password_0", "http://172.21.121.117:5001")
